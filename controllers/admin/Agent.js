@@ -6,6 +6,7 @@ const GameBet = require('../../models/GameBet');
 const errorHandler = require('../../middleware/ErrorHandling');
 const Plan = require('../../models/Plan');
 const axios = require('axios')
+const { v4: uuidv4 } = require('uuid');
 
 const createAgent = async (req, res, next) => {
 	try {
@@ -373,43 +374,61 @@ const getAgentPlayers = async (req, res) => {
 };
 
 const fetchPlayerData = async (req, res) => {
-	try {
-		const agentId = req.user._id;
-
-		// Find the agent data based on the agent's user ID
-		const agent = await AgentData.findOne({ userId: agentId });
-
-		if (!agent) {
+    try {
+        const agentId = req.user._id; 
+		
+        const agent = await AgentData.findOne({ userId: agentId });
+        if (!agent) {
 			return res.status(404).json({ success: false, message: 'Agent not found' });
-		}
+        }
+		
+        const response = await axios.post(agent.fetch_balance_api, {
+			secretToken: agent.secretTokenFromAgent,
+        });
 
-		// Send a request to the external fetch_balance_api using the agent's secret token
-		const response = await axios.post(agent.fetch_balance_api, { secretToken: agent.secretTokenFromAgent });
+        if (response.data.success) {
+            const playersData = response.data.players; 
 
-		if (response.data.success) {
-			// Add user_id field to the fetched data
-			const responseDataWithUserId = {
-				...response.data,
-				user_id: agent.userId, // Add user_id field here
-			};
+            for (const player of playersData) {
+                const existingPlayer = await Player.findOne({
+                    mobileEmail: player?.mobileEmail,
+                    agentId: agentId,
+                });
 
-			return res.status(200).json({
-				success: true,
-				data: responseDataWithUserId, // Send back the updated data with user_id
-			});
-		} else {
-			return res.status(400).json({
-				success: false,
-				message: response.data.message || 'Failed to fetch player data',
-			});
-		}
-	} catch (err) {
-		return res.status(500).json({
-			success: false,
-			message: `External API error: ${err.response?.statusText || err.message}.`,
-			details: err.response?.data || err.message,
-		});
-	}
+                if (!existingPlayer) {
+                    await Player.create({
+                        userId: req.user._id, 
+                        agentId: agentId,
+                        mobileEmail: player.mobileEmail,
+                        balance: player.balance,
+                        gameToken: uuidv4(), 
+                        lang: player.lang || 'en',
+                        return_url: player.return_url || '',
+                        totalWin: player.totalWin || 0,
+                        totalLoss: player.totalLoss || 0,
+                        todayWin: player.todayWin || 0,
+                        todayLoss: player.todayLoss || 0,
+                    });
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: 'Player data fetched and stored successfully.',
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: response.data.message || 'Failed to fetch player data',
+            });
+        }
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            message: `External API error: ${err.response?.statusText || err.message}.`,
+            details: err.response?.data || err.message,
+        });
+    }
 };
 
 const updatePlayerData = async (req, res) => {

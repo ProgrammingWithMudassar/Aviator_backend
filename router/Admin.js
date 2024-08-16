@@ -32,6 +32,9 @@ const {
 	approveBalanceRequest,
 	rejectBalanceRequest,
 } = require('../controllers/admin/Approvals');
+const {
+	getAllPlayers
+} = require('../controllers/admin/player')
 
 
 
@@ -71,7 +74,8 @@ router.post('/approve-balance/:requestId', approveBalanceRequest);
 router.post('/reject-balance/:requestId',  rejectBalanceRequest); 
 
 
-
+// Route to get all players
+router.get('/players', auth, getAllPlayers);
 
 
 module.exports = router;
