@@ -116,7 +116,6 @@ const getAllAgents = async (req, res) => {
 	}
 };
 
-
 const getAgentById = async (req, res) => {
 	try {
 		const agentId = req.params.agentId;

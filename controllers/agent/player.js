@@ -73,8 +73,16 @@ const getPlayerRecords = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // Find all players associated with this userId
-    const players = await Player.find({ userId });
+    // Pagination setup
+    const page = parseInt(req.query.page) || 1; // Current page number, default to 1
+    const limit = parseInt(req.query.limit) || 10; // Number of records per page, default to 10
+    const skip = (page - 1) * limit; // Calculate the number of documents to skip
+
+    // Fetch the total count of player records for the user
+    const total = await Player.countDocuments({ userId });
+
+    // Fetch players with pagination
+    const players = await Player.find({ userId }).skip(skip).limit(limit);
 
     if (!players || players.length === 0) {
       return res.status(404).json({
@@ -85,6 +93,11 @@ const getPlayerRecords = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      message: 'Player records fetched successfully',
+      count: players.length,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
       data: players,
     });
   } catch (err) {
@@ -94,6 +107,7 @@ const getPlayerRecords = async (req, res) => {
     });
   }
 };
+
 
 
 module.exports = {

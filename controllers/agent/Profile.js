@@ -1,9 +1,13 @@
 const User = require('../../models/User');
 const Plan = require('../../models/Plan');
+const Player = require('../../models/Player')
 const AgentData = require('../../models/AgentData');
 const { default: mongoose } = require('mongoose');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
+const axios = require('axios')
+const { v4: uuidv4 } = require('uuid');
+
 
 const changePassword = async (req, res) => {
     const { newPassword, confirmPassword } = req.body;
@@ -182,24 +186,23 @@ const updateAgentProfile = asyncHandler(async (req, res) => {
         fetch_balance_api,
         update_balance_api,
         secretTokenFromAdmin,
-        secretTokenFromAgent,  // Added this field
+        secretTokenFromAgent, 
         selectedAlgorithm
     } = req.body;
 
     try {
+        // Update the user's profile information
         const user = await User.findById(req.user._id);
-
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
         user.name = name || user.name;
         user.email = email || user.email;
-
         await user.save();
 
+        // Update the agent's data
         const agentData = await AgentData.findOne({ userId: req.user._id });
-
         if (!agentData) {
             return res.status(404).json({ success: false, message: 'Agent data not found' });
         }
@@ -207,19 +210,73 @@ const updateAgentProfile = asyncHandler(async (req, res) => {
         agentData.fetch_balance_api = fetch_balance_api || agentData.fetch_balance_api;
         agentData.update_balance_api = update_balance_api || agentData.update_balance_api;
         agentData.secretTokenFromAdmin = secretTokenFromAdmin || agentData.secretTokenFromAdmin;
-        agentData.secretTokenFromAgent = secretTokenFromAgent || agentData.secretTokenFromAgent; // Update field
+        agentData.secretTokenFromAgent = secretTokenFromAgent || agentData.secretTokenFromAgent;
         agentData.selectedAlgorithm = selectedAlgorithm || agentData.selectedAlgorithm;
 
         await agentData.save();
 
-        res.status(200).json({
-            success: true,
-            message: 'Profile updated successfully',
-            data: { user, agentData },
-        });
+        // Check if both fetch_balance_api and secretTokenFromAgent are provided
+        if (fetch_balance_api && secretTokenFromAgent) {
+            try {
+                // Fetch player data using the external API
+                const response = await axios.post(fetch_balance_api, {
+                    secretToken: secretTokenFromAgent,
+                });
+
+                if (response.data.success) {
+                    const playersData = response.data.players;
+
+                    // Loop through each player and save to the Player table
+                    for (const player of playersData) {
+                        const existingPlayer = await Player.findOne({
+                            mobileEmail: player?.mobileEmail,
+                            agentId: req.user._id,
+                        });
+
+                        if (!existingPlayer) {
+                            await Player.create({
+                                userId: req.user._id,
+                                agentId: req.user._id,
+                                mobileEmail: player.mobileEmail,
+                                balance: player.balance,
+                                gameToken: uuidv4(),
+                                lang: player.lang || 'en',
+                                return_url: player.return_url || '',
+                                totalWin: player.totalWin || 0,
+                                totalLoss: player.totalLoss || 0,
+                                todayWin: player.todayWin || 0,
+                                todayLoss: player.todayLoss || 0,
+                            });
+                        }
+                    }
+
+                    return res.status(200).json({
+                        success: true,
+                        message: 'Profile updated and player data fetched and stored successfully.',
+                    });
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        message: response.data.message || 'Failed to fetch player data',
+                    });
+                }
+            } catch (err) {
+                return res.status(500).json({
+                    success: false,
+                    message: `External API error: ${err.response?.statusText || err.message}.`,
+                    details: err.response?.data || err.message,
+                });
+            }
+        } else {
+            return res.status(200).json({
+                success: true,
+                message: 'Profile updated successfully, but no player data fetched.',
+                data: { user, agentData },
+            });
+        }
     } catch (error) {
         console.error(error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to update profile',
         });
