@@ -1,4 +1,4 @@
-const Player = require('../models/Player');
+const Player = require('../../models/Player');
 
 const getAllPlayers = async (req, res) => {
   try {
