@@ -1,5 +1,6 @@
-const AgentData = require('../../models/AgentData');
 const User = require('../../models/User');
+const AgentData = require('../../models/AgentData');
+const Player = require('../../models/Player');
 
 // API to add credentials for an agent
 const addAgentCredentials = async (req, res) => {
@@ -68,8 +69,35 @@ const getAgentCredentials = async (req, res) => {
   }
 };
 
+const getPlayerRecords = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Find all players associated with this userId
+    const players = await Player.find({ userId });
+
+    if (!players || players.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No players found for this user',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: players,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 
 module.exports = {
   getAgentCredentials,
-  addAgentCredentials
+  addAgentCredentials,
+  getPlayerRecords
 };

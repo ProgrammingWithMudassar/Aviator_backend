@@ -1,5 +1,9 @@
 const express = require('express');
-const { addAgentCredentials } = require('../controllers/agent/player');
+const { 
+    getAgentCredentials,
+    addAgentCredentials,
+    getPlayerRecords
+ } = require('../controllers/agent/player');
 const { getUserWithPlan, requestBalance } = require('../controllers/agent/Balance');
 const { 
     getAgentProfile,
@@ -9,6 +13,9 @@ const {
  } = require("../controllers/agent/Profile");
 const { auth, roleAuth } = require('../middleware/authMiddleware');
 const { getBalanceHistory } = require('../controllers/agent/History');
+
+
+
 
 const router = express.Router();
 
@@ -24,5 +31,7 @@ router.get('/current-plan', auth, getAgentCurrentPlan);
 
 // Change password route
 router.post('/change-password', auth, changePassword);
+
+router.get('/get-player-records', auth,getPlayerRecords)
 
 module.exports = router;
