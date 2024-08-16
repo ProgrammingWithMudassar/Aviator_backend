@@ -177,10 +177,12 @@ const getAgentCurrentPlan = async (req, res) => {
 
 const updateAgentProfile = asyncHandler(async (req, res) => {
     const {
-        name, email,
+        name,
+        email,
         fetch_balance_api,
         update_balance_api,
         secretTokenFromAdmin,
+        secretTokenFromAgent,  // Added this field
         selectedAlgorithm
     } = req.body;
 
@@ -205,6 +207,7 @@ const updateAgentProfile = asyncHandler(async (req, res) => {
         agentData.fetch_balance_api = fetch_balance_api || agentData.fetch_balance_api;
         agentData.update_balance_api = update_balance_api || agentData.update_balance_api;
         agentData.secretTokenFromAdmin = secretTokenFromAdmin || agentData.secretTokenFromAdmin;
+        agentData.secretTokenFromAgent = secretTokenFromAgent || agentData.secretTokenFromAgent; // Update field
         agentData.selectedAlgorithm = selectedAlgorithm || agentData.selectedAlgorithm;
 
         await agentData.save();
@@ -222,6 +225,7 @@ const updateAgentProfile = asyncHandler(async (req, res) => {
         });
     }
 });
+
 
 module.exports = {
     getAgentProfile,

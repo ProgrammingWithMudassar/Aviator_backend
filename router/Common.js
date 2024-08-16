@@ -3,7 +3,7 @@ const { loginUser } = require('../controllers/common/loginUser');
 const { logoutUser } = require('../controllers/common/logout');
 // const { protect } = require('../middleware/authMiddleware');
 const { addFirstAdminUser } = require('../controllers/common/addFirstAdminUser');
-const { createUser } = require('../controllers/common/userController');
+const { createUser, getUserProfile} = require('../controllers/common/userController');
 const { auth } = require('../middleware/authMiddleware')
 
 
@@ -18,5 +18,7 @@ router.post('/logout', auth, logoutUser);
 router.post('/add-first-admin', addFirstAdminUser);
 
 router.post('/users', createUser);
+
+router.get('/auth-user-profile', auth, getUserProfile);
 
 module.exports = router;

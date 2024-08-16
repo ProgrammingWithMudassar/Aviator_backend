@@ -35,6 +35,26 @@ const createUser = asyncHandler(async (req, res) => {
   }
 });
 
+const getUserProfile = asyncHandler(async (req, res) => {
+  const user = req.user; // We already have the user data from the auth middleware
+
+  res.status(200).json({
+    success: true,
+    message: 'User profile retrieved successfully',
+    token: req.token, // Return the same token
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      balance: user.balance,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    },
+  });
+});
+
 module.exports = {
   createUser,
+  getUserProfile
 };
