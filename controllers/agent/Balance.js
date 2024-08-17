@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const User = require('../../models/User');
+const Plan = require('../../models/Plan')
 const AgentData = require('../../models/AgentData');
 const BalanceRequest = require("../../models/BalanceRequest")
 
@@ -79,7 +80,7 @@ const requestBalance = asyncHandler(async (req, res) => {
   const UPI_Number = req.body.upiId;
   const UTR_Number = req.body.utr;
   const userId = req.user._id;
-  
+
   console.log("userId:", userId);
   console.log("Amount Paid:", requestBalance);
   console.log("UPI ID:", UPI_Number);
@@ -117,70 +118,58 @@ const requestBalance = asyncHandler(async (req, res) => {
   }
 });
 
-const renewAndUpgradePlan = asyncHandler(async (req, res) => {
+const updatePlan = async (req, res) => {
   try {
-    const agentId = req.user._id; 
-    const { planId } = req.body; 
+    const userId = req.user._id;
+    const { planId } = req.body;  // Plan ID from the frontend
 
-    // Find the agent's data
-    const agentData = await AgentData.findOne({ userId: agentId });
+    // Check if the authenticated user is an agent
+    const user = await User.findById(userId);
+    if (user.role !== 'agent') {
+      return res.status(403).json({ message: 'Only agents can update plans.' });
+    }
+
+    console.log("planId", planId);
+
+    const selectedPlan = await Plan.findById(planId);
+    console.log("selectedPlan", selectedPlan);
+    if (!selectedPlan) {
+      return res.status(404).json({ message: 'Plan not found.' });
+    }
+
+
+    // Check if the user has enough balance to buy the plan
+    if (user.balance < selectedPlan.price) {
+      return res.status(400).json({ message: 'Insufficient balance.' });
+    }
+
+    // Find the user's agent data
+    const agentData = await AgentData.findOne({ userId });
     if (!agentData) {
-      return res.status(404).json({ success: false, message: 'Agent data not found.' });
+      return res.status(404).json({ message: 'Agent data not found.' });
     }
 
-    // Find the new plan by planId
-    const newPlan = await Plan.findById(planId);
-    if (!newPlan) {
-      return res.status(404).json({ success: false, message: 'Plan not found.' });
-    }
+    // Update user's balance and assign the new plan
+    user.balance -= selectedPlan.price;
+    await user.save();
 
-    // Find the agent's user data
-    const agentUser = await User.findById(agentId);
-    if (!agentUser) {
-      return res.status(404).json({ success: false, message: 'Agent not found.' });
-    }
+    // Assign the new plan to the agent and set the plan expiry date
+    const currentDate = new Date();
+    const expiryDate = new Date(currentDate.setDate(currentDate.getDate() + selectedPlan.days));
 
-    // Check if the agent has enough balance to buy the plan
-    if (agentUser.balance < newPlan.price) {
-      return res.status(400).json({ success: false, message: 'Insufficient balance.' });
-    }
-
-    // Deduct the plan amount from the agent's balance
-    agentUser.balance -= newPlan.price;
-    await agentUser.save();
-
-    // Credit the amount to the admin's account (assuming the admin user has a fixed ID)
-    const adminUser = await User.findOne({ role: 'admin' });
-    if (adminUser) {
-      adminUser.balance += newPlan.price;
-      await adminUser.save();
-    }
-
-    // Update the agent's plan and set a new expiry date
-    agentData.planId = newPlan._id;
-    agentData.planExpiryDate = new Date(Date.now() + newPlan.days * 24 * 60 * 60 * 1000); // Adding the plan duration in days to the current date
-    agentData.maxAllowedPlayers = newPlan.maxAllowedPlayers;
+    agentData.planId = selectedPlan._id;
+    agentData.planExpiryDate = expiryDate;
     await agentData.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Plan renewed and upgraded successfully.',
-      data: {
-        plan: newPlan,
-        expiryDate: agentData.planExpiryDate,
-        balance: agentUser.balance,
-      },
-    });
+    return res.status(200).json({ message: 'Plan updated successfully', agentData });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: `Error renewing plan: ${error.message}`,
-    });
+    console.error(error);
+    return res.status(500).json({ message: 'An error occurred while updating the plan.' });
   }
-});
-
+};
 
 module.exports = {
   getUserWithPlan,
-  requestBalance
+  requestBalance,
+  updatePlan
 };

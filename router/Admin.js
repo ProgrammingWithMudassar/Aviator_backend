@@ -35,6 +35,10 @@ const {
 const {
 	getAllPlayers
 } = require('../controllers/admin/player')
+const {
+	getAdminSettings,
+	updateAdminSettings	
+} = require('../controllers/admin/ProfileSetting')
 
 
 
@@ -72,6 +76,12 @@ router.delete('/plans/:planId', deletePlan);
 // Approvals 
 router.post('/approve-balance/:requestId', approveBalanceRequest); 
 router.post('/reject-balance/:requestId',  rejectBalanceRequest); 
+
+
+// Get admin settings (for display on frontend)
+router.get('/settings', auth, roleAuth(['admin']), getAdminSettings);
+router.put('/settings', auth, roleAuth(['admin']), updateAdminSettings);
+
 
 
 // Route to get all players
